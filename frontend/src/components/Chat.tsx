@@ -48,8 +48,9 @@ export default function Chat() {
   // 학습용 퀵 스타트 예제 칩
   const quickPrompts = [
     { label: "내 레포 목록 조회", prompt: "현재 내 GitHub 저장소 목록을 조회해서 요약해줘." },
-    { label: "README.md 파일 수정", prompt: "mcp-test 저장소의 README.md 파일 내용을 읽어보고 끝에 '김과장 완료'라고 덧붙여서 업데이트해줘." },
-    { label: "최근 커밋 확인", prompt: "mcp-test 저장소의 최근 커밋 목록 3개만 조회해줘." }
+    { label: "README.md 파일 수정", prompt: "mcpExample 저장소의 README.md 파일 내용을 읽어보고 끝에 '김과장 완료'라고 덧붙여서 업데이트해줘." },
+    { label: "최근 커밋 확인", prompt: "mcpExample 저장소의 최근 커밋 목록 3개만 조회해줘." },
+    { label: "깃허브 반영해줘", prompt: "현재 로컬의 변경 사항을 깃허브에 반영해줘." }
   ];
 
   // 컴포넌트 마운트 시 백엔드의 MCP 툴 스펙 로드
@@ -314,7 +315,7 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend(input)}
-              placeholder="예: mcp-test 저장소의 최근 커밋 5개 조회해줘..."
+              placeholder="예: mcpExample 저장소의 최근 커밋 5개 조회해줘..."
               className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 text-sm placeholder:text-zinc-600"
             />
             <button

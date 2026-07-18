@@ -84,5 +84,19 @@
       },
       "required": ["repo_name"]
     }
+  },
+  {
+    "name": "push_all_changes",
+    "description": "로컬 저장소의 모든 변경 사항(추가, 수정, 삭제)을 스테이징(git add .) 및 커밋하고 원격 저장소로 푸시한 뒤 그 과정과 결과를 상세 리포트로 반환합니다.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "commit_message": {
+          "type": "string",
+          "description": "깃허브에 반영할 커밋 메시지 (미지정 시 에이전트가 자동 생성)"
+        }
+      },
+      "required": []
+    }
   }
 ]

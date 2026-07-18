@@ -1,3 +1,4 @@
+# 사전설치 : pip install fastapi uvicorn pydantic PyGithub
 import os
 import json
 import re
@@ -32,17 +33,17 @@ llm_router = LLMRouter()
 github_token = os.getenv("GITHUB_TOKEN")
 
 if not github_token:
-    print("⚠️ Warning: GITHUB_TOKEN 환경 변수가 설정되지 않았습니다. GitHub 도구 호출이 실패할 수 있습니다.")
+    print("[Warning] GITHUB_TOKEN 환경 변수가 설정되지 않았습니다. GitHub 도구 호출이 실패할 수 있습니다.")
 
 github_client = Github(github_token) if github_token else None
 
-# MCP 도구 정의 파일 로드
-MCP_TOOLS_PATH = os.path.join(os.path.dirname(__file__), "mcp", "github.json")
+# MCP 도구 정의 파일 로드 (루트 폴더 mcp/github.json)
+MCP_TOOLS_PATH = os.path.join(os.path.dirname(__file__), "..", "mcp", "github.json")
 try:
     with open(MCP_TOOLS_PATH, "r", encoding="utf-8") as f:
         MCP_TOOLS = json.load(f)
 except Exception as e:
-    print(f"⚠️ Warning: MCP 도구 스펙 파일을 읽는 중 오류가 발생했습니다: {e}")
+    print(f"[Warning] MCP 도구 스펙 파일을 읽는 중 오류가 발생했습니다: {e}")
     MCP_TOOLS = []
 
 
@@ -76,17 +77,17 @@ def get_user_repo(repo_name: str):
                     matches = difflib.get_close_matches(repo_name, repo_full_names, n=1, cutoff=0.6)
                     if matches:
                         corrected_name = matches[0]
-                        print(f"🔧 저장소명 오타 감지 (full_name): '{repo_name}' -> '{corrected_name}'으로 자동 보정하여 시도합니다.")
+                        print(f"[Fuzzy Match] 저장소명 오타 감지 (full_name): '{repo_name}' -> '{corrected_name}'으로 자동 보정하여 시도합니다.")
                         return github_client.get_repo(corrected_name)
                 else:
                     repo_names = [r.name for r in repos]
                     matches = difflib.get_close_matches(repo_name, repo_names, n=1, cutoff=0.6)
                     if matches:
                         corrected_name = matches[0]
-                        print(f"🔧 저장소명 오타 감지 (name): '{repo_name}' -> '{corrected_name}'으로 자동 보정하여 시도합니다.")
+                        print(f"[Fuzzy Match] 저장소명 오타 감지 (name): '{repo_name}' -> '{corrected_name}'으로 자동 보정하여 시도합니다.")
                         return user.get_repo(corrected_name)
             except Exception as fuzzy_err:
-                print(f"⚠️ 오타 자동 보정 시도 중 에러 발생 (무시하고 원래 404 에러 처리): {fuzzy_err}")
+                print(f"[Fuzzy Match Error] 오타 자동 보정 시도 중 에러 발생 (무시하고 원래 404 에러 처리): {fuzzy_err}")
                 
         raise HTTPException(
             status_code=e.status,
@@ -210,6 +211,104 @@ async def call_tool(request: Dict[str, Any]):
                 })
             result_text = json.dumps(commit_list, ensure_ascii=False, indent=2)
 
+        # 6. 로컬 전체 변경사항 커밋 및 푸시
+        elif tool_name == "push_all_changes":
+            import subprocess
+            # 로컬 프로젝트 루트 디렉터리는 backend의 상위 폴더
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            
+            # 한글 파일명 깨짐 방지 설정
+            subprocess.run(["git", "config", "core.quotepath", "false"], cwd=project_root, capture_output=True)
+            
+            # 1. git status 감지
+            status_res = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=project_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="ignore"
+            )
+            
+            if status_res.returncode != 0:
+                raise Exception(f"git status 실행 실패: {status_res.stderr}")
+                
+            status_output = status_res.stdout.strip()
+            if not status_output:
+                result_text = "### ℹ️ 알림\n로컬 저장소에 반영할 변경 사항이 없습니다. 작업 폴더가 이미 최신 상태입니다."
+            else:
+                # 변경 파일 정보 추출 및 파싱
+                lines = status_output.split("\n")
+                added_files = []
+                modified_files = []
+                deleted_files = []
+                
+                for line in lines:
+                    if not line.strip():
+                        continue
+                    status_flag = line[:2]
+                    # 한글 파일명의 경우 따옴표로 감싸져서 나올 수 있으므로 양끝 따옴표 제거
+                    file_path = line[2:].strip().strip('"')
+                    
+                    if "A" in status_flag or "??" in status_flag:
+                        added_files.append(file_path)
+                    elif "M" in status_flag:
+                        modified_files.append(file_path)
+                    elif "D" in status_flag:
+                        deleted_files.append(file_path)
+                
+                # 2. 커밋 메시지 자동 생성
+                commit_message = arguments.get("commit_message")
+                if not commit_message:
+                    # 변경 사항에 맞춰 간이 자동 커밋 메시지 생성
+                    summary_parts = []
+                    if added_files:
+                        summary_parts.append(f"Add {', '.join(added_files[:2])}" + ("..." if len(added_files) > 2 else ""))
+                    if modified_files:
+                        summary_parts.append(f"Update {', '.join(modified_files[:2])}" + ("..." if len(modified_files) > 2 else ""))
+                    if deleted_files:
+                        summary_parts.append(f"Delete {', '.join(deleted_files[:2])}" + ("..." if len(deleted_files) > 2 else ""))
+                    
+                    commit_message = "style/feat: " + " | ".join(summary_parts) if summary_parts else "Auto-committed by MCP Agent"
+                
+                # 3. git add .
+                add_res = subprocess.run(["git", "add", "."], cwd=project_root, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+                if add_res.returncode != 0:
+                    raise Exception(f"git add 실패: {add_res.stderr}")
+                
+                # 4. git commit -m
+                commit_res = subprocess.run(["git", "commit", "-m", commit_message], cwd=project_root, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+                if commit_res.returncode != 0:
+                    raise Exception(f"git commit 실패: {commit_res.stderr}")
+                
+                # 5. git push
+                push_res = subprocess.run(["git", "push"], cwd=project_root, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+                if push_res.returncode != 0:
+                    raise Exception(f"git push 실패: {push_res.stderr}")
+                
+                # 6. 커밋 SHA 정보 획득
+                sha_res = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=project_root, capture_output=True, text=True)
+                commit_sha = sha_res.stdout.strip() if sha_res.returncode == 0 else "N/A"
+                
+                # 결과 리포트 포맷화 (Markdown)
+                report = []
+                report.append("### 🎉 GitHub 반영 성공 완료 보고서")
+                report.append(f"- **커밋 메시지**: `{commit_message}`")
+                report.append(f"- **커밋 SHA**: `{commit_sha}`")
+                report.append(f"- **대상 브랜치**: `main` (origin)")
+                report.append("\n#### 📂 변경된 파일 내역 목록")
+                report.append("| 상태 | 파일 경로 |")
+                report.append("| :--- | :--- |")
+                
+                for f in added_files:
+                    report.append(f"| 🟢 신규 추가 (Added) | `{f}` |")
+                for f in modified_files:
+                    report.append(f"| 🟡 변경 수정 (Modified) | `{f}` |")
+                for f in deleted_files:
+                    report.append(f"| 🔴 삭제 제거 (Deleted) | `{f}` |")
+                
+                result_text = "\n".join(report)
+
         else:
             raise HTTPException(status_code=404, detail=f"정의되지 않은 MCP 도구입니다: '{tool_name}'")
 
@@ -264,7 +363,7 @@ async def handle_natural_language_task(task: TaskRequest):
     try:
         # LLM Router를 통해 첫 번째 실행 플랜 수립
         plan_text, planner_model = await llm_router.generate(planner_system_prompt, planner_user_prompt)
-        print(f"🤖 [Planner Model: {planner_model}] 수립된 계획:\n{plan_text}")
+        print(f"[Planner Model: {planner_model}] 수립된 계획:\n{plan_text}")
         
         # JSON 플랜 파싱
         tool_calls = extract_json_array(plan_text)
@@ -275,7 +374,7 @@ async def handle_natural_language_task(task: TaskRequest):
             tool_name = call.get("tool")
             args = call.get("arguments", {})
             
-            print(f"➡️ [Step {i+1}] 실행 도구: {tool_name} | 인자: {args}")
+            print(f"[Step {i+1}] 실행 도구: {tool_name} | 인자: {args}")
             
             # call_tool 내부 직접 호출
             tool_response = await call_tool({"name": tool_name, "arguments": args})
@@ -295,7 +394,7 @@ async def handle_natural_language_task(task: TaskRequest):
 
             # 에러 발생 시 진행 중단 후 사용자에게 오류 보고
             if is_error:
-                print(f"❌ [Step {i+1}] 실행 에러로 인해 시퀀스가 중단되었습니다.")
+                print(f"[Step {i+1} Error] 실행 에러로 인해 시퀀스가 중단되었습니다.")
                 break
 
         # 3단계: 실행 로그를 기반으로 최종 자연어 피드백 생성
