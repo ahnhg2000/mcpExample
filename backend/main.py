@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import difflib
 from typing import List, Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,7 +52,7 @@ except Exception as e:
 def get_user_repo(repo_name: str):
     """
     저장소명을 기반으로 PyGithub Repository 객체를 획득하는 헬퍼 함수.
-    'owner/repo' 형태와 일반 'repo' 형태를 모두 지원합니다.
+    'owner/repo' 형태와 일반 'repo' 형태를 모두 지원하며, 404 에러 시 유사한 저장소명으로 오타 보정을 시도합니다.
     """
     if not github_client:
         raise HTTPException(status_code=500, detail="GitHub 클라이언트가 초기화되지 않았습니다. GITHUB_TOKEN을 확인해 주십시오.")
@@ -64,6 +65,29 @@ def get_user_repo(repo_name: str):
             user = github_client.get_user()
             return user.get_repo(repo_name)
     except GithubException as e:
+        if e.status == 404:
+            # 404 발생 시, 오타(Fuzzy Matching) 보정 시도
+            try:
+                user = github_client.get_user()
+                repos = user.get_repos()
+                
+                if "/" in repo_name:
+                    repo_full_names = [r.full_name for r in repos]
+                    matches = difflib.get_close_matches(repo_name, repo_full_names, n=1, cutoff=0.6)
+                    if matches:
+                        corrected_name = matches[0]
+                        print(f"🔧 저장소명 오타 감지 (full_name): '{repo_name}' -> '{corrected_name}'으로 자동 보정하여 시도합니다.")
+                        return github_client.get_repo(corrected_name)
+                else:
+                    repo_names = [r.name for r in repos]
+                    matches = difflib.get_close_matches(repo_name, repo_names, n=1, cutoff=0.6)
+                    if matches:
+                        corrected_name = matches[0]
+                        print(f"🔧 저장소명 오타 감지 (name): '{repo_name}' -> '{corrected_name}'으로 자동 보정하여 시도합니다.")
+                        return user.get_repo(corrected_name)
+            except Exception as fuzzy_err:
+                print(f"⚠️ 오타 자동 보정 시도 중 에러 발생 (무시하고 원래 404 에러 처리): {fuzzy_err}")
+                
         raise HTTPException(
             status_code=e.status,
             detail=f"GitHub 저장소 '{repo_name}'를 찾을 수 없거나 접근 권한이 없습니다. (원인: {e.data.get('message', str(e))})"
