@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 프리미엄 UI 디자인을 위한 스크롤바 스타일 커스터마이징 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(63, 63, 70, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(82, 82, 91, 0.6);
+}
+
+/* 글래스모피즘(Glassmorphism) 유틸리티 */
+.glass-panel {
+  background: rgba(18, 18, 18, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 은은한 네온 글로우(Neon Glow) 애니메이션 */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.15;
+    filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.2));
+  }
+  50% {
+    opacity: 0.3;
+    filter: drop-shadow(0 0 25px rgba(16, 185, 129, 0.4));
+  }
+}
+
+.neon-glow-bg {
+  animation: pulse-glow 8s infinite ease-in-out;
+}

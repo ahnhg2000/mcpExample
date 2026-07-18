@@ -1,0 +1,88 @@
+[
+  {
+    "name": "list_repositories",
+    "description": "사용자의 GitHub 계정에 속한 저장소 목록을 조회합니다.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  {
+    "name": "get_repository_details",
+    "description": "특정 GitHub 저장소의 기본 정보(설명, 별 개수, 주 언어 등)를 조회합니다.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo_name": {
+          "type": "string",
+          "description": "조회할 저장소 이름 (예: 'my-project')"
+        }
+      },
+      "required": ["repo_name"]
+    }
+  },
+  {
+    "name": "read_file_content",
+    "description": "저장소 내 특정 경로의 파일 내용을 읽어옵니다.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo_name": {
+          "type": "string",
+          "description": "저장소 이름"
+        },
+        "path": {
+          "type": "string",
+          "description": "읽어올 파일의 상대 경로 (예: 'README.md')"
+        }
+      },
+      "required": ["repo_name", "path"]
+    }
+  },
+  {
+    "name": "create_or_update_file",
+    "description": "저장소 내에 파일을 생성하거나 기존 파일 내용을 수정하여 커밋합니다.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo_name": {
+          "type": "string",
+          "description": "저장소 이름"
+        },
+        "path": {
+          "type": "string",
+          "description": "생성 또는 수정할 파일의 상대 경로 (예: 'src/main.py')"
+        },
+        "content": {
+          "type": "string",
+          "description": "저장할 파일의 내용"
+        },
+        "commit_message": {
+          "type": "string",
+          "description": "커밋 메시지"
+        }
+      },
+      "required": ["repo_name", "path", "content", "commit_message"]
+    }
+  },
+  {
+    "name": "list_commits",
+    "description": "저장소의 최근 커밋 목록을 조회합니다.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo_name": {
+          "type": "string",
+          "description": "저장소 이름"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "조회할 커밋의 최대 개수 (기본값: 5)",
+          "default": 5
+        }
+      },
+      "required": ["repo_name"]
+    }
+  }
+]
