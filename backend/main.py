@@ -1,4 +1,5 @@
 # 사전설치 : pip install fastapi uvicorn pydantic PyGithub python-dotenv langchain-google-genai langchain-groq langchain-ollama langchain-core
+# 라이브러리를 독립적으로 사용하기 위해 가상환경(venv) 구성 : ctrl + shift + p --> Python:Select Interpreter --> create venv --> Python 3.12 선택
 
 import os
 import json
