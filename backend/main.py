@@ -1,4 +1,5 @@
-# 사전설치 : pip install fastapi uvicorn pydantic PyGithub
+# 사전설치 : pip install fastapi uvicorn pydantic PyGithub python-dotenv langchain-google-genai langchain-groq langchain-ollama langchain-core
+
 import os
 import json
 import re
